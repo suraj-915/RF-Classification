@@ -1,7 +1,7 @@
 function iq_out = generate_modulations(sig_type, target_length)
     % GENERATE_MODULATIONS: Synthesizes physical RF baseband signals.
     % Inputs:
-    %   sig_type      - String: 'WLAN', 'LTE', '5G', or 'Interferer'
+    %   sig_type      - String: 'WLAN', 'LTE', or '5G'
     %   target_length - Integer: Number of samples to return (e.g., 1024)
     % Output:
     %   iq_out        - 1D Complex Column Vector (Normalized)
@@ -47,20 +47,6 @@ function iq_out = generate_modulations(sig_type, target_length)
             cp_len = fft_size / 4;                                  % cyclic prefix length
             time_matrix = [time_matrix(end-cp_len+1:end, :); time_matrix];  % prepend CP
             iq_out = time_matrix(:);
-
-        case 'Interferer'
-            % Bluetooth-style Frequency Hopping Jammer
-            % Generates a rapid shift between two random carrier frequencies
-            t = (0:target_length-1)' / 30.72e6; % Time vector
-            half_len = floor(target_length / 2);
-            
-            f1 = 1e6 + rand() * 5e6; % Random freq 1
-            f2 = 1e6 + rand() * 5e6; % Random freq 2
-            
-            wave1 = exp(1i * 2 * pi * f1 * t(1:half_len));
-            wave2 = exp(1i * 2 * pi * f2 * t(half_len+1:end));
-            
-            iq_out = [wave1; wave2];
             
         otherwise
             error('Unknown signal type requested.');
