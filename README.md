@@ -34,7 +34,7 @@ Both experiments are designed so the network cannot take shortcuts. In Experimen
 │   ├── run_rfss_experiment.m       # Entry point
 │   └── trained_rf_classifier_*.mat # Saved trained models from prior runs
 └── data/
-    └── rfss_single.h5              # RFSS dataset — bundled in the repo, no separate download needed
+    └── rfss_single.h5              # (Experiment 2 only → download separately, see below for further details)
 ```
 
 ---
@@ -163,7 +163,13 @@ Replaces synthetic signals with real 3GPP standards compliant captures from the 
 
 The [RFSS dataset](https://huggingface.co/datasets/Chrishao/rfss) contains single-source captures of GSM, UMTS, LTE, and 5G NR signals, each already corrupted with a realistic 3GPP TDL fading channel plus hardware impairments (CFO, SFO, I/Q imbalance, DC offset, phase noise, PA nonlinearity). This means the network must learn to classify signals that arrived through a physics-accurate channel, not a simplified AWGN approximation.
 
-The dataset (`data/rfss_single.h5`, ~1.4 GB) is bundled directly in this repo, so no separate download is required — just clone and run.
+Download the data file (~1.4 GB) before running:
+
+```bash
+mkdir -p data
+curl -L -o data/rfss_single.h5 \
+  "https://huggingface.co/datasets/Chrishao/rfss/resolve/main/data/rfss_single.h5"
+```
 
 ### The Signal Pipeline
 
