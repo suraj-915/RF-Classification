@@ -25,9 +25,6 @@ Both experiments are designed so the network cannot take shortcuts. In Experimen
 .
 ├── README.md
 ├── binaryCrossEntropyLayer.m       # Custom multi-label output layer (sigmoid + BCE fused) — shared by both experiments
-├── assets/                         # Illustrative figures/animations referenced in this README
-│   ├── impairment_pipeline.gif
-│   └── rayleigh_doppler_fading.gif
 ├── Experiment 1/                   # Synthetically generated data
 │   ├── run_full_experiment.m       # Entry point
 │   ├── generate_modulations.m      # Synthesizes WLAN / LTE / 5G / Interferer baseband signals
@@ -79,17 +76,9 @@ Each signal is normalized to unit power before being mixed, so the Signal-to-Int
 
 Every generated signal passes through a four-stage channel simulation before being fed to the network. The stages are applied in transmission order:
 
-![Signal impairment pipeline: clean spectrum degrading through PA nonlinearity, Rayleigh fading, phase noise/CFO, and AWGN](assets/impairment_pipeline.gif)
-
-*Illustrative reconstruction of the four-stage pipeline's effect on a synthetic multicarrier spectrum. Regenerate from the actual `apply_rf_impairments.m` outputs for publication-accurate figures.*
-
 1. **Power Amplifier Non-linearity** : Simulates a transmitter's amplifier being driven into saturation. This compresses the outer points of the QAM constellation (AM/AM distortion), the primary mode of failure in cheaper hardware.
 
 2. **Rayleigh Multipath Fading** : An urban macro channel with three bounce paths at delays of 0, 1.5 µs, and 3.2 µs, with path gains of 0, −3, and −10 dB respectively. A 50 Hz Doppler shift simulates a real world moving reflector. This is the most destructive impairment as it carves frequency selective holes in the signal's spectrum.
-
-   ![Rayleigh multipath channel frequency response shifting over time due to 50 Hz Doppler](assets/rayleigh_doppler_fading.gif)
-
-   *The fading notches drift across frequency as the Doppler phase evolves — this is why a classifier trained on a single static SNR/fade snapshot fails in the field.*
 
 3. **Phase Noise + Carrier Frequency Offset (CFO)** : Phase noise at −90 dBc/Hz adds random jitter to every sample. A random CFO between ±5 kHz causes the constellation to rotate continuously. These are modeled after the behavior of cheap TCXO oscillators and are a major reason constellation-based classifiers fall short in the field.
 
