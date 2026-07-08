@@ -1,6 +1,6 @@
 # RF Signal Classification with Neural Networks
 
-Multi-label classification of overlapping wireless signals from impaired RF inputs using neural networks in MATLAB , without any external ML frameworks.
+Multi-label classification of overlapping wireless signals from impaired RF inputs using neural networks in MATLAB, without any external ML frameworks.
 
 Two complete experiments are included: one that synthesizes its own training data from scratch, and one that trains on real 3GPP-standard signals from the RFSS dataset. Both can classify multiple co-channel signals simultaneously (e.g. WLAN *and* LTE present at the same time along with real world impairments), a task that single-label classifiers are incapable of doing.
 
@@ -23,14 +23,18 @@ Both experiments are designed so the network cannot take shortcuts. In Experimen
 
 ```
 .
-├── run_full_experiment.m       # Entry point: Experiment 1 (synthetically generated data)
-├── run_rfss_experiment.m       # Entry point: Experiment 2 (real imported RFSS data)
-├── train_hybrid_network.m      # 1D-CNN architecture definition (used by Exp. 1)
-├── generate_modulations.m      # Synthesizes WLAN / LTE / 5G / Interferer baseband signals (used by Exp. 1)
-├── apply_rf_impairments.m      # Full channel simulation pipeline (PA → Rayleigh → Phase Noise → CFO → AWGN) (used by Exp. 1)
-├── binaryCrossEntropyLayer.m   # Custom multi-label output layer (sigmoid + BCE fused) (used by Exp. 1)
+├── README.md
+├── binaryCrossEntropyLayer.m       # Custom multi-label output layer (sigmoid + BCE fused) — shared by both experiments
+├── Experiment 1/                   # Synthetically generated data
+│   ├── run_full_experiment.m       # Entry point
+│   ├── generate_modulations.m      # Synthesizes WLAN / LTE / 5G / Interferer baseband signals
+│   ├── apply_rf_impairments.m      # Full channel simulation pipeline (PA → Rayleigh → Phase Noise → CFO → AWGN)
+│   └── train_hybrid_network.m      # 1D-CNN architecture definition
+├── Experiment 2/                   # Real imported RFSS data
+│   ├── run_rfss_experiment.m       # Entry point
+│   └── trained_rf_classifier_*.mat # Saved trained models from prior runs
 └── data/
-    └── rfss_single.h5          # (Experiment 2 only → download separately, see below for further details)
+    └── rfss_single.h5              # RFSS dataset — bundled in the repo, no separate download needed
 ```
 
 ---
@@ -133,6 +137,7 @@ Training data: 1,000 samples per class (3,000 total). Validation: 200 samples pe
 ### Running Experiment 1
 
 ```matlab
+cd 'Experiment 1'
 matlab -batch "run_full_experiment"
 ```
 
@@ -158,15 +163,7 @@ Replaces synthetic signals with real 3GPP standards compliant captures from the 
 
 The [RFSS dataset](https://huggingface.co/datasets/Chrishao/rfss) contains single-source captures of GSM, UMTS, LTE, and 5G NR signals, each already corrupted with a realistic 3GPP TDL fading channel plus hardware impairments (CFO, SFO, I/Q imbalance, DC offset, phase noise, PA nonlinearity). This means the network must learn to classify signals that arrived through a physics-accurate channel, not a simplified AWGN approximation.
 
-Download the data file (~1.4 GB) before running:
-
-
-
-```bash
-mkdir -p data
-curl -L -o data/rfss_single.h5 \
-  "https://huggingface.co/datasets/Chrishao/rfss/resolve/main/data/rfss_single.h5"
-```
+The dataset (`data/rfss_single.h5`, ~1.4 GB) is bundled directly in this repo, so no separate download is required — just clone and run.
 
 ### The Signal Pipeline
 
@@ -201,6 +198,7 @@ We use average pooling rather than max pooling here because spectrogram energy i
 ### Running Experiment 2
 
 ```bash
+cd 'Experiment 2'
 matlab -batch "run_rfss_experiment"
 ```
 
@@ -210,7 +208,7 @@ Expected performance on held-out mixtures: ~71% exact-match accuracy, ~90% Hammi
 
 ## The Custom Loss Layer (`binaryCrossEntropyLayer.m`)
 
-Both the experiments use a custom MATLAB layer that fuses the sigmoid activation and binary cross-entropy loss into a single operation.
+Both experiments use a custom MATLAB layer, kept at the repo root, that fuses the sigmoid activation and binary cross-entropy loss into a single operation.
 
 **The problem with the naive approach:** If you stack a `sigmoidLayer` followed by a `regressionLayer` (which uses MSE), the gradient flowing back through the sigmoid becomes `(Y − T) × σ'(z)`. The derivative of the sigmoid, `σ'(z)`, approaches zero when the network is confidently predicting the wrong answer which are exactly the samples that most need correction. Learning stalls precisely when it's most needed.
 
@@ -229,9 +227,6 @@ Because this is a multi-label problem, accuracy needs to be measured carefully:
 | **Exact Match Accuracy** | % of samples where every label is correct | Primary metric — strict, operationally meaningful |
 | **Hamming Accuracy** | % of individual label decisions that are correct | Secondary — useful for diagnosing which classes are harder |
 | **Precision / Recall / F1** | Standard per-class metrics computed from TP/FP/FN | Diagnosing class-level failure modes |
-
-
-
 
 ---
 
