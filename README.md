@@ -163,7 +163,7 @@ Replaces synthetic signals with real 3GPP standards compliant captures from the 
 
 The [RFSS dataset](https://huggingface.co/datasets/Chrishao/rfss) contains single-source captures of GSM, UMTS, LTE, and 5G NR signals, each already corrupted with a realistic 3GPP TDL fading channel plus hardware impairments (CFO, SFO, I/Q imbalance, DC offset, phase noise, PA nonlinearity). This means the network must learn to classify signals that arrived through a physics-accurate channel, not a simplified AWGN approximation.
 
-Download the data file (~1.4 GB) before running:
+Download the data file (~1.4 GB) before running. Create the `data/` directory at the repo root — the same level as `Experiment 1/` and `Experiment 2/`:
 
 ```bash
 mkdir -p data
