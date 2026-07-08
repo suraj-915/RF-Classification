@@ -1,33 +1,5 @@
 % =========================================================================
-% The following comment block documents modifications made to the original
-% GitHub version of run_full_experiment.m. It is inserted here so the file
-% self-describes differences from upstream for reviewers and future authors.
-%
-% MODIFICATIONS vs GitHub:
-% 1) Increased sig_len to 4096 (from 1024) so the lag-1024 CP peak for 5G
-%    is estimable within a single window.
-% 2) Added parallel pool startup (parpool) at runtime if no pool exists.
-% 3) Reworked data generation calls to return cell arrays of features and
-%    labels and wrapped them in datastore combinations (arrayDatastore +
-%    combine) for training/validation; original used plain arrays.
-% 4) TrainingOptions updated:
-%    - 'OutputNetwork' set to 'best-validation-loss' to retain best model.
-%    - 'ExecutionEnvironment' set to 'parallel' for multi-core training.
-%    - 'ValidationPatience' added to early-stop on validation.
-%    - Metrics field set to [] to avoid newer default metrics behavior.
-% 5) After prediction, logits are converted with sigmoid and thresholded to
-%    produce predicted_labels; then Exact Match, Hamming, and per-class
-%    precision/recall/F1 are computed and visualized with a grouped bar.
-% 6) The trained network is saved as 'trained_rf_classifier_structure.mat'.
-%
-% NOTES:
-% - These changes are intended to improve reproducibility and evaluation,
-%   and to accommodate the 5G cyclic-prefix estimation requirement.
-% - No changes were made to the architecture file 'train_hybrid_network.m'
-%   other than being loaded via the existing call.
-%
-% If you need a formal diff against the GitHub file, run a textual diff
-% between this file and the upstream run_full_experiment.m.
+
 % run_full_experiment.m
 % Structure-Based Multi-Label RF Classification
 %
@@ -55,7 +27,7 @@ sig_len = 4096;   % long window: 5G's lag-1024 cyclic-prefix peak needs many
 % =========================================================================
 disp('--- GENERATING DATASET ---');
 sir_hard = [0, 10];
-samples_per_class = 100;
+samples_per_class = 1000;
 
 [feat_train, labels_train] = generate_dataset(samples_per_class, fs, classes, sir_hard, sig_len);
 dsTrain = combine(arrayDatastore(cat(4, feat_train{:}), 'IterationDimension', 4), ...
@@ -84,7 +56,6 @@ options = trainingOptions('adam', ...
     'ValidationPatience', 8, ...
     'OutputNetwork', 'best-validation-loss', ... % keep best model, not the last (R2021b+)
     'Plots', 'training-progress', ...
-    'Metrics', [], ...  
     'ExecutionEnvironment', 'parallel');
 
 disp('Training structure-based network...');
