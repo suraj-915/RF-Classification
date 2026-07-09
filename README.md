@@ -111,8 +111,8 @@ The I/Q constellation is the clearest way to *see* what each impairment actually
 <table>
 <tr>
 <td width="50%" align="center">
-<img src="./assets/multipath_fading.gif" width="100%"><br>
-<sub><b>Multipath fading</b> — echoes arriving via the three Rayleigh paths blur each constellation point into a smear, since the receiver is now summing several delayed, differently-scaled copies of the same symbol.</sub>
+<img src="./assets/all_impairments.gif" width="100%"><br>
+<sub><b>No Impairments</b> — the clean 16-QAM constellation diagram with no noise impairments applied.</sub>
 </td>
 <td width="50%" align="center">
 <img src="./assets/frequency_offset.gif" width="100%"><br>
@@ -125,8 +125,8 @@ The I/Q constellation is the clearest way to *see* what each impairment actually
 <sub><b>Clock offset</b> — a small sample-timing mismatch between transmitter and receiver clocks (SFO) progressively shears and drifts the constellation grid over time.</sub>
 </td>
 <td width="50%" align="center">
-<img src="./assets/all_impairments.gif" width="100%"><br>
-<sub><b>All impairments combined</b> — fading, CFO, and clock offset stacked together, approximating what the network actually sees during training once AWGN is layered on top.</sub>
+<img src="./assets/multipath_fading.gif" width="100%"><br>
+<sub><b>Multipath fading</b> — echoes arriving via the three Rayleigh paths blur each constellation point into a smear, since the receiver is now summing several delayed, differently-scaled copies of the same symbol.</sub>
 </td>
 </tr>
 </table>
