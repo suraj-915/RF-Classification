@@ -10,10 +10,10 @@ Two complete experiments are included: one that synthesizes its own training dat
 
 Standard RF classification benchmarks (like RadioML) hand you clean, single-signal captures at a known SNR. But the real spectrum doesn't work that way. In practice, you're dealing with:
 
-- **Overlapping signals** — WLAN, LTE, and 5G share spectrum. Multiple standards can be active in the same channel simultaneously.
-- **Hardware impairments** — Every transmitter and receiver introduces distortion: power amplifier clipping, oscillator phase noise, carrier frequency offsets.
-- **Multipath fading** — Signals bounce off buildings, arrive at the antenna through multiple delayed paths, and interfere with themselves.
-- **Variable SNR** — The classifier needs to work at 0 dB (i.e, a signal buried in noise) and 30 dB (i.e, nearly clean) without being tuned for a specific operating point.
+- **Overlapping signals** - WLAN, LTE, and 5G share spectrum. Multiple standards can be active in the same channel simultaneously.
+- **Hardware impairments** - Every transmitter and receiver introduces distortion: power amplifier clipping, oscillator phase noise, carrier frequency offsets.
+- **Multipath fading** - Signals bounce off buildings, arrive at the antenna through multiple delayed paths, and interfere with themselves.
+- **Variable SNR** - The classifier needs to work at 0 dB (i.e, a signal buried in noise) and 30 dB (i.e, nearly clean) without being tuned for a specific operating point.
 
 Both experiments are designed so the network cannot take shortcuts. In Experiment 1, each signal's bandwidth is randomized across overlapping ranges: WLAN, LTE, and 5G all share the 5–14 MHz region, this means the model is forced to learn structural features rather than just measuring bandwidth.
 
@@ -33,6 +33,7 @@ Both experiments are designed so the network cannot take shortcuts. In Experimen
 ├── Experiment 2/                   # Real imported RFSS data
 │   ├── run_rfss_experiment.m       # Entry point
 │   └── trained_rf_classifier_*.mat # Saved trained models from prior runs
+├── assets/                         # README images and impairment/OFDM animations
 └── data/
     └── rfss_single.h5              # (Experiment 2 only → download separately, see below for further details)
 ```
@@ -72,6 +73,25 @@ Three signal types are synthesized in `generate_modulations.m`:
 
 Each signal is normalized to unit power before being mixed, so the Signal-to-Interference Ratio (SIR) is controlled precisely.
 
+#### OFDM pipeline, visualized
+
+Every one of the three standards above is built on the same underlying OFDM machinery: bits get mapped onto subcarriers, transformed into a time-domain waveform via IFFT, converted to analog and pushed through the RF channel, then reversed at the receiver with an FFT to recover the original bitstream. The animation below walks through that full round trip stage by stage.
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="./assets/ofdm_no_noise.gif" width="100%"><br>
+<sub><b>Clean channel (0% noise)</b> — the bitstream survives the IFFT → DAC → RF channel → ADC → FFT round trip untouched.</sub>
+</td>
+<td width="50%" align="center">
+<img src="./assets/ofdm_noise.gif" width="100%"><br>
+<sub><b>Noisy channel (100% noise)</b> — the same pipeline with AWGN injected at the RF channel stage. Notice how the recovered bitstream after the FFT no longer matches the original.</sub>
+</td>
+</tr>
+</table>
+
+This is the exact structure `generate_modulations.m` and `apply_rf_impairments.m` implement in code — the cyclic prefix inserted at the IFFT stage is precisely what the autocorrelation feature (below) later exploits to identify each standard.
+
 ### The Channel Model (`apply_rf_impairments.m`)
 
 Every generated signal passes through a four-stage channel simulation before being fed to the network. The stages are applied in transmission order:
@@ -83,6 +103,35 @@ Every generated signal passes through a four-stage channel simulation before bei
 3. **Phase Noise + Carrier Frequency Offset (CFO)** : Phase noise at −90 dBc/Hz adds random jitter to every sample. A random CFO between ±5 kHz causes the constellation to rotate continuously. These are modeled after the behavior of cheap TCXO oscillators and are a major reason constellation-based classifiers fall short in the field.
 
 4. **AWGN** : Additive white Gaussian noise at a randomized SNR (Signal to Noise Ratio) uniformly drawn from 0–30 dB. This forces the network to generalize across the full operating range rather than overfitting to a comfortable SNR.
+
+#### Impairments, visualized
+
+The I/Q constellation is the clearest way to *see* what each impairment actually does to a signal. The clips below show a clean 16-QAM constellation (four tight clusters per quadrant) degrading as each impairment is dialed up independently.
+
+<table>
+<tr>
+<td width="50%" align="center">
+<img src="./assets/multipath_fading.gif" width="100%"><br>
+<sub><b>Multipath fading</b> — echoes arriving via the three Rayleigh paths blur each constellation point into a smear, since the receiver is now summing several delayed, differently-scaled copies of the same symbol.</sub>
+</td>
+<td width="50%" align="center">
+<img src="./assets/frequency_offset.gif" width="100%"><br>
+<sub><b>Frequency offset (CFO)</b> — an uncorrected carrier mismatch between transmitter and receiver oscillators spins the entire constellation continuously, dragging each point around in a circular arc.</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<img src="./assets/clock_offset.gif" width="100%"><br>
+<sub><b>Clock offset</b> — a small sample-timing mismatch between transmitter and receiver clocks (SFO) progressively shears and drifts the constellation grid over time.</sub>
+</td>
+<td width="50%" align="center">
+<img src="./assets/all_impairments.gif" width="100%"><br>
+<sub><b>All impairments combined</b> — fading, CFO, and clock offset stacked together, approximating what the network actually sees during training once AWGN is layered on top.</sub>
+</td>
+</tr>
+</table>
+
+This is exactly why a network trained only on clean constellations fails in the field — it has never seen the smeared, rotated, drifting version of the signal it needs to recognize.
 
 ### Feature: Cyclostationary Autocorrelation
 
@@ -151,6 +200,30 @@ After training, the script reports three metrics on held-out test data:
 - **Hamming Accuracy** : The fraction of individual label decisions (out of 3 × N total) that are correct. This is more lenient and is useful for understanding per-label performance.
 - **Per-class Precision / Recall / F1** : Printed for WLAN, LTE, and 5G individually, with a grouped bar chart.
 
+### Results
+
+<p align="center">
+<img src="./assets/exp1_training_progress.png" width="85%">
+<br><sub>Training progress: RMSE and loss curves over 30 epochs, training vs. validation. Validation loss is used for early stopping and to select the best checkpoint.</sub>
+</p>
+
+<p align="center">
+<img src="./assets/exp1_architecture.png" width="55%">
+<br><sub>The 1D-CNN layer graph as generated by <code>train_hybrid_network.m</code> — input → three strided conv blocks → pool → dense classification head → multi-label output.</sub>
+</p>
+
+<table>
+<tr>
+<td width="55%" valign="top">
+<img src="./assets/exp1_precision_recall_f1.png" width="100%">
+</td>
+<td width="45%" valign="top">
+<img src="./assets/exp1_final_results.png" width="100%">
+</td>
+</tr>
+</table>
+<p align="center"><sub>Final held-out test results: 74.44% exact-match accuracy, 90.07% Hamming accuracy. 5G is the hardest class to separate (lowest precision), while WLAN is classified most precisely — consistent with 5G's longer cyclic prefix requiring more of the 4096-sample window to resolve cleanly.</sub></p>
+
 ---
 
 ## Experiment 2 : Real RFSS Dataset
@@ -200,6 +273,18 @@ Output: 4-dimensional sigmoid probability vector (GSM, UMTS, LTE, 5G NR)
 ```
 
 We use average pooling rather than max pooling here because spectrogram energy is spread across time and frequency bins — average pooling retains the mean activation across a region, which is more informative for spectral shape than the single maximum.
+
+### Results
+
+<p align="center">
+<img src="./assets/exp2_training_progress.png" width="85%">
+<br><sub>Training progress on real RFSS captures: 13 of 25 epochs shown, single-GPU execution. Validation RMSE trends upward as the network moves past its earliest, most conservative predictions — normal behavior once the validation-loss checkpointing (not raw RMSE) is what actually determines the saved model.</sub>
+</p>
+
+<p align="center">
+<img src="./assets/exp2_final_results.png" width="60%">
+<br><sub>Final held-out mixture results: 78.90% exact-match accuracy, 92.58% Hamming accuracy across GSM, UMTS, LTE, and 5G NR. LTE shows the largest precision/recall gap — its 3GPP TDL channel and narrower guard bands make it the easiest class to confuse with an overlapping neighbor.</sub>
+</p>
 
 ### Running Experiment 2
 
